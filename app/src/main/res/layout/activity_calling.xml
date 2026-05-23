@@ -1,239 +1,282 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#2C2C2E">
+    android:background="@color/bg_light">
 
-    <!-- Timer and Call Icon -->
+    <!-- Header background -->
+    <View
+        android:id="@+id/headerBg"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@color/primary"
+        app:layout_constraintHeight_percent="0.4"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Timer and Call Status -->
     <LinearLayout
-        android:id="@+id/llTimer"
+        android:id="@+id/llStatus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="40dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_marginTop="60dp"
+        android:background="@drawable/bg_status_capsule"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@android:drawable/ic_menu_call"
-            android:contentDescription="Call timer icon"
-            app:tint="#00B0FF" />
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:contentDescription="Call Icon"
+            android:src="@android:drawable/stat_sys_phone_call"
+            app:tint="@color/white" />
 
         <TextView
             android:id="@+id/tvTimer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="00 : 10 : 45"
+            android:text="Calling..."
             android:textColor="@color/white"
-            android:textSize="18sp" />
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Caller Name -->
+    <!-- Caller Information -->
     <TextView
         android:id="@+id/tvCallerName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/llTimer"
-        android:layout_centerHorizontal="true"
         android:layout_marginTop="24dp"
-        android:text="SOS Emergency"
+        android:text="Emergency Services"
         android:textColor="@color/white"
-        android:textSize="36sp" />
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/llStatus" />
 
-    <!-- Phone Number -->
     <TextView
         android:id="@+id/tvPhoneNumber"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/tvCallerName"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="8dp"
-        android:text="12 34 5678"
-        android:textColor="#00B0FF"
-        android:textSize="20sp" />
+        android:layout_marginTop="4dp"
+        android:alpha="0.8"
+        android:text="911"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvCallerName" />
 
-    <!-- Caller Image Placeholder -->
-    <FrameLayout
-        android:id="@+id/flCallerImage"
-        android:layout_width="160dp"
-        android:layout_height="160dp"
-        android:layout_below="@id/tvPhoneNumber"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="40dp">
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/ic_launcher_background"
-            android:alpha="0.2" />
+    <!-- Profile Avatar -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cvAvatar"
+        android:layout_width="140dp"
+        android:layout_height="140dp"
+        android:layout_marginTop="40dp"
+        app:cardCornerRadius="70dp"
+        app:cardElevation="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvPhoneNumber">
 
         <ImageView
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:layout_gravity="center"
-            android:src="@android:drawable/ic_menu_report_image"
-            android:contentDescription="Caller profile image"
-            app:tint="#A0A0A0" />
-    </FrameLayout>
+            android:id="@+id/ivAvatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/cll" />
+    </androidx.cardview.widget.CardView>
 
-    <!-- Call Controls Grid -->
-    <GridLayout
+    <!-- Controls Container -->
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/flCallerImage"
-        android:layout_marginTop="60dp"
-        android:columnCount="3"
-        android:paddingHorizontal="40dp">
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="40dp"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="12dp"
+        app:layout_constraintBottom_toTopOf="@id/btnEndCall"
+        app:layout_constraintTop_toBottomOf="@id/cvAvatar"
+        app:layout_constraintVertical_bias="0.8">
 
-        <!-- Mute -->
-        <LinearLayout
-            android:layout_width="0dp"
+        <GridLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:gravity="center"
-            android:orientation="vertical">
-            <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/ic_lock_silent_mode"
-                android:contentDescription="Mute call"
-                app:tint="@color/white" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Mute"
-                android:textColor="@color/white"
-                android:layout_marginTop="8dp" />
-        </LinearLayout>
+            android:alignmentMode="alignMargins"
+            android:columnCount="3"
+            android:padding="24dp"
+            android:rowCount="2">
 
-        <!-- Keypad -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:gravity="center"
-            android:orientation="vertical">
-            <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/ic_dialog_dialer"
-                android:contentDescription="Keypad"
-                app:tint="@color/white" />
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Mute -->
+            <LinearLayout
+                android:id="@+id/llMute"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Keypad"
-                android:textColor="@color/white"
-                android:layout_marginTop="8dp" />
-        </LinearLayout>
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="10dp"
+                    android:src="@android:drawable/ic_lock_silent_mode"
+                    app:tint="@color/text_grey" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Mute"
+                    android:textColor="@color/text_grey"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
-        <!-- Speaker -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:gravity="center"
-            android:orientation="vertical">
-            <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/ic_lock_silent_mode_off"
-                android:contentDescription="Speaker"
-                app:tint="@color/white" />
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Keypad -->
+            <LinearLayout
+                android:id="@+id/llKeypad"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Speaker"
-                android:textColor="@color/white"
-                android:layout_marginTop="8dp" />
-        </LinearLayout>
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="10dp"
+                    android:src="@android:drawable/ic_dialog_dialer"
+                    app:tint="@color/text_grey" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Keypad"
+                    android:textColor="@color/text_grey"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
-        <!-- Video Call -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_marginTop="40dp"
-            android:gravity="center"
-            android:orientation="vertical">
-            <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/presence_video_online"
-                android:contentDescription="Video call"
-                app:tint="@color/white" />
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Speaker -->
+            <LinearLayout
+                android:id="@+id/llSpeaker"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Video call"
-                android:textColor="@color/white"
-                android:layout_marginTop="8dp" />
-        </LinearLayout>
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="10dp"
+                    android:src="@android:drawable/ic_lock_silent_mode_off"
+                    app:tint="@color/primary" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Speaker"
+                    android:textColor="@color/primary"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
-        <!-- Add call -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_marginTop="40dp"
-            android:gravity="center"
-            android:orientation="vertical">
-            <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/ic_menu_add"
-                android:contentDescription="Add call"
-                app:tint="@color/white" />
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Video -->
+            <LinearLayout
+                android:id="@+id/llVideoCall"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Add call"
-                android:textColor="@color/white"
-                android:layout_marginTop="8dp" />
-        </LinearLayout>
+                android:layout_columnWeight="1"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="10dp"
+                    android:src="@android:drawable/presence_video_online"
+                    app:tint="@color/text_grey" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Video"
+                    android:textColor="@color/text_grey"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
-        <!-- Contacts -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_marginTop="40dp"
-            android:gravity="center"
-            android:orientation="vertical">
-            <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/ic_menu_my_calendar"
-                android:contentDescription="Contacts"
-                app:tint="@color/white" />
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Add Call -->
+            <LinearLayout
+                android:id="@+id/llAddCall"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Contacts"
-                android:textColor="@color/white"
-                android:layout_marginTop="8dp" />
-        </LinearLayout>
+                android:layout_columnWeight="1"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="10dp"
+                    android:src="@android:drawable/ic_menu_add"
+                    app:tint="@color/text_grey" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Add Call"
+                    android:textColor="@color/text_grey"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
-    </GridLayout>
+            <!-- Record -->
+            <LinearLayout
+                android:id="@+id/llContacts"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="10dp"
+                    android:src="@android:drawable/ic_btn_speak_now"
+                    app:tint="@color/text_grey" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Record"
+                    android:textColor="@color/text_grey"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+        </GridLayout>
+    </androidx.cardview.widget.CardView>
 
     <!-- End Call Button -->
-    <ImageView
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnEndCall"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="60dp"
-        android:background="@android:drawable/presence_video_online"
-        android:backgroundTint="#FF3B30"
-        android:padding="20dp"
         android:src="@android:drawable/ic_menu_call"
-        android:rotation="135"
-        android:contentDescription="End call"
+        app:backgroundTint="@color/fire_red"
+        app:fabCustomSize="72dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:tint="@color/white" />
 
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

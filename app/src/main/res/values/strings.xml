@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">S.O.S.</string>
+    <string name="sos_title">SOS Emergency</string>
+    <string name="sos_instruction">Press the button to send an SOS alert</string>
+    <string name="emergency_contact_label">EMERGENCY CONTACT</string>
+    <string name="contact_name_mom">Mom</string>
+    <string name="contact_number_mom">0976 481 0670</string>
+    <string name="change_contact_tip">Long press button to change contact</string>
+    <string name="live_location_alert">Live location will be sent</string>
 </resources>
