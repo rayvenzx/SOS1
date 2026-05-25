@@ -14,10 +14,10 @@
         android:title="Call" />
     <item
         android:id="@+id/nav_panic_alarm"
-        android:icon="@drawable/ic_nav_panic"
+        android:icon="@drawable/ic_panic_nav"
         android:title="Panic" />
     <item
         android:id="@+id/nav_settings"
-        android:icon="@drawable/ic_nav_settings"
+        android:icon="@drawable/ic_settings_modern"
         android:title="Settings" />
 </menu>

@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    <!-- Outer Circle -->
+    <path
+        android:pathData="M100,100m-90,0a90,90 0,1 1,180 0a90,90 0,1 1,-180 0"
+        android:strokeWidth="2"
+        android:strokeColor="#AAFFFFFF" />
+    <!-- Vertical Lines (Longitudes) -->
+    <path
+        android:pathData="M100,10 L100,190"
+        android:strokeWidth="1"
+        android:strokeColor="#66FFFFFF" />
+    <path
+        android:pathData="M100,100m-40,0a40,90 0,1 1,80 0a40,90 0,1 1,-80 0"
+        android:strokeWidth="1"
+        android:strokeColor="#44FFFFFF" />
+    <!-- Horizontal Lines (Latitudes) -->
+    <path
+        android:pathData="M10,100 L190,100"
+        android:strokeWidth="1"
+        android:strokeColor="#66FFFFFF" />
+    <path
+        android:pathData="M100,100m-90,0a90,40 0,1 1,180 0a90,40 0,1 1,-180 0"
+        android:strokeWidth="1"
+        android:strokeColor="#44FFFFFF" />
+</vector>

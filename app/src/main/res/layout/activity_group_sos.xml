@@ -5,9 +5,11 @@
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context=".GroupSosActivity">
 
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#F5F5F7">
@@ -28,8 +30,10 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="@drawable/bg_circle_icon"
+                android:backgroundTint="@color/white"
                 android:padding="8dp"
-                android:src="@drawable/lines" />
+                android:src="@drawable/lines"
+                 />
 
             <TextView
                 android:layout_width="0dp"
@@ -46,8 +50,10 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="@drawable/bg_circle_icon"
+                android:backgroundTint="@color/white"
                 android:padding="8dp"
-                android:src="@drawable/loc" />
+                android:src="@drawable/loc"
+                 />
         </LinearLayout>
 
     <ScrollView
@@ -185,8 +191,9 @@
             android:id="@+id/bottomNavigation"
             style="@style/Widget.App.BottomNavigationView"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="wrap_content"
             android:background="@color/white"
+            app:itemIconTint="@null"
             app:layout_constraintBottom_toBottomOf="parent"
             app:menu="@menu/bottom_nav_menu" />
 

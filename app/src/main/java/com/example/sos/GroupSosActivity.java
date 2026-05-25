@@ -57,6 +57,9 @@ public class GroupSosActivity extends AppCompatActivity {
             int id = item.getItemId();
             if (id == R.id.nav_add_member) {
                 showSelectMemberTypeBottomSheet();
+            } else if (id == R.id.nav_view_members) {
+                // Already displaying members in this activity
+                Toast.makeText(this, "You are viewing members", Toast.LENGTH_SHORT).show();
             } else if (id == R.id.nav_sos_message) {
                 startActivity(new Intent(this, ProfileActivity.class));
             } else if (id == R.id.nav_share || id == R.id.nav_suggestions || id == R.id.nav_support 
@@ -243,14 +246,53 @@ public class GroupSosActivity extends AppCompatActivity {
                 startActivity(new Intent(this, ProfileActivity.class));
                 return true;
             } else if (id == R.id.nav_call) {
-                showCallInputDialog("Emergency", "911");
+                handleCallAction();
                 return true;
             } else if (id == R.id.nav_panic_alarm) {
-                Toast.makeText(this, "Panic sequence triggered", Toast.LENGTH_SHORT).show();
+                startActivity(new Intent(this, PanicActivity.class));
+                finish();
                 return true;
             }
             return false;
         });
+    }
+
+    private void handleCallAction() {
+        String json = sharedPreferences.getString("contacts_json", "[]");
+        try {
+            JSONArray array = new JSONArray(json);
+            if (array.length() == 0) {
+                showCallInputDialog("Emergency", "911");
+            } else if (array.length() == 1) {
+                JSONObject obj = array.getJSONObject(0);
+                showCallInputDialog(obj.getString("name"), obj.getString("number"));
+            } else {
+                showContactSelectionDialog(array);
+            }
+        } catch (JSONException e) {
+            showCallInputDialog("Emergency", "911");
+        }
+    }
+
+    private void showContactSelectionDialog(JSONArray array) throws JSONException {
+        String[] items = new String[array.length()];
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject obj = array.getJSONObject(i);
+            items[i] = obj.getString("name") + " (" + obj.getString("number") + ")";
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Select Contact to Call")
+                .setItems(items, (dialog, which) -> {
+                    try {
+                        JSONObject obj = array.getJSONObject(which);
+                        showCallInputDialog(obj.getString("name"), obj.getString("number"));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void showCallInputDialog(String serviceName, String defaultNumber) {
@@ -271,18 +313,23 @@ public class GroupSosActivity extends AppCompatActivity {
         builder.setPositiveButton("Call", (dialog, which) -> {
             String number = input.getText().toString().trim();
             if (!number.isEmpty()) {
-                makeQuickCall(number);
+                makeQuickCall(serviceName, number);
             }
         });
         builder.setNegativeButton("Cancel", null);
         builder.show();
     }
 
-    private void makeQuickCall(String number) {
+    private void makeQuickCall(String name, String number) {
         if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CALL_PHONE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
             android.content.Intent callIntent = new android.content.Intent(android.content.Intent.ACTION_CALL);
             callIntent.setData(android.net.Uri.parse("tel:" + number));
             startActivity(callIntent);
+
+            Intent statusIntent = new Intent(this, CallingActivity.class);
+            statusIntent.putExtra("contact_name", name);
+            statusIntent.putExtra("contact_number", number);
+            startActivity(statusIntent);
         } else {
             androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CALL_PHONE}, 101);
         }

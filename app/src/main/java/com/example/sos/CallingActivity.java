@@ -1,6 +1,7 @@
 package com.example.sos;
 
 import android.os.Bundle;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -10,6 +11,15 @@ public class CallingActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_calling);
+
+        String name = getIntent().getStringExtra("contact_name");
+        String number = getIntent().getStringExtra("contact_number");
+
+        TextView tvName = findViewById(R.id.tvCallerName);
+        TextView tvNumber = findViewById(R.id.tvPhoneNumber);
+
+        if (name != null) tvName.setText(name);
+        if (number != null) tvNumber.setText(number);
 
         // End Call Button
         findViewById(R.id.btnEndCall).setOnClickListener(v -> finish());

@@ -23,7 +23,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -101,7 +100,6 @@ public class MainActivity extends AppCompatActivity {
         Configuration.getInstance().load(this, sharedPreferences != null ? sharedPreferences : getSharedPreferences("SOS_Prefs", Context.MODE_PRIVATE));
 
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
         // Drawer Setup
@@ -114,8 +112,7 @@ public class MainActivity extends AppCompatActivity {
             if (id == R.id.nav_add_member) {
                 showAddContactDialog();
             } else if (id == R.id.nav_view_members) {
-                // Future view members logic
-                Toast.makeText(this, "View Members", Toast.LENGTH_SHORT).show();
+                showViewMembersDialog();
             } else if (id == R.id.nav_sos_message) {
                 startActivity(new Intent(this, ProfileActivity.class));
             } else if (id == R.id.nav_share || id == R.id.nav_suggestions || id == R.id.nav_support 
@@ -163,12 +160,6 @@ public class MainActivity extends AppCompatActivity {
         } else {
             startLocationUpdates();
         }
-
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
 
         ImageView btnSos = findViewById(R.id.btnSos);
         if (btnSos != null) {
@@ -219,6 +210,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadContacts() {
         contactList.clear();
+        
+        // Load from Emergency Contacts
         String json = sharedPreferences.getString("contacts_json", null);
         if (json != null) {
             try {
@@ -230,10 +223,33 @@ public class MainActivity extends AppCompatActivity {
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-        } else {
-            // Initial default contact if none exists
-            contactList.add(new Contact("Emergency", "911"));
         }
+
+        // Load from Group SOS Members as well (unify "saved numbers")
+        String groupJson = sharedPreferences.getString("group_members_json", null);
+        if (groupJson != null) {
+            try {
+                JSONArray array = new JSONArray(groupJson);
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject obj = array.getJSONObject(i);
+                    String number = obj.getString("number");
+                    // Avoid duplicates
+                    boolean exists = false;
+                    for (Contact c : contactList) {
+                        if (c.number.equals(number)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        contactList.add(new Contact(obj.getString("type"), number));
+                    }
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+
         refreshContactListView();
     }
 
@@ -379,6 +395,36 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
+    private void showViewMembersDialog() {
+        if (contactList.isEmpty()) {
+            Toast.makeText(this, "No contacts saved", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String[] items = new String[contactList.size()];
+        for (int i = 0; i < contactList.size(); i++) {
+            items[i] = contactList.get(i).name + " (" + contactList.get(i).number + ")";
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Emergency Contacts (Tap to delete)")
+                .setItems(items, (dialog, which) -> {
+                    Contact contact = contactList.get(which);
+                    new AlertDialog.Builder(this)
+                            .setTitle("Delete Contact")
+                            .setMessage("Remove " + contact.name + " from emergency contacts?")
+                            .setPositiveButton("Delete", (d, w) -> {
+                                contactList.remove(which);
+                                saveContacts();
+                                Toast.makeText(this, "Contact Deleted", Toast.LENGTH_SHORT).show();
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                })
+                .setPositiveButton("Close", null)
+                .show();
+    }
+
     private void handleContactSelection(Uri contactUri) {
         String[] projection = {ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER};
         Cursor cursor = getContentResolver().query(contactUri, projection, null, null, null);
@@ -453,25 +499,54 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupBottomNavigation() {
         com.google.android.material.bottomnavigation.BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);
+        bottomNav.setSelectedItemId(R.id.nav_home);
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_home) {
+                android.widget.ScrollView scrollView = findViewById(R.id.mainScrollView);
+                if (scrollView != null) scrollView.smoothScrollTo(0, 0);
                 return true;
             } else if (id == R.id.nav_group_sos) {
                 startActivity(new Intent(this, GroupSosActivity.class));
                 return true;
             } else if (id == R.id.nav_settings) {
-                startActivity(new Intent(this, ProfileActivity.class)); // Assuming Profile handles settings for now
+                startActivity(new Intent(this, ProfileActivity.class));
                 return true;
             } else if (id == R.id.nav_call) {
-                showCallInputDialog("Emergency", "911");
+                handleCallAction();
                 return true;
             } else if (id == R.id.nav_panic_alarm) {
-                triggerSOS();
+                startActivity(new Intent(this, PanicActivity.class));
                 return true;
             }
             return false;
         });
+    }
+
+    private void handleCallAction() {
+        if (contactList.isEmpty()) {
+            showCallInputDialog("Emergency", "911");
+        } else if (contactList.size() == 1) {
+            showCallInputDialog(contactList.get(0).name, contactList.get(0).number);
+        } else {
+            showContactSelectionDialog();
+        }
+    }
+
+    private void showContactSelectionDialog() {
+        String[] names = new String[contactList.size()];
+        for (int i = 0; i < contactList.size(); i++) {
+            names[i] = contactList.get(i).name + " (" + contactList.get(i).number + ")";
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Select Contact to Call")
+                .setItems(names, (dialog, which) -> {
+                    Contact contact = contactList.get(which);
+                    showCallInputDialog(contact.name, contact.number);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void setupQuickServiceButtons() {
@@ -501,21 +576,21 @@ public class MainActivity extends AppCompatActivity {
         builder.setPositiveButton("Call & Text", (dialog, which) -> {
             String number = input.getText().toString().trim();
             if (!number.isEmpty()) {
-                sendSmsAndCall(number, "Emergency " + serviceName + " alert triggered. I need assistance.");
+                sendSmsAndCall(serviceName, number, "Emergency " + serviceName + " alert triggered. I need assistance.");
             }
         });
         builder.setNegativeButton("Cancel", null);
         builder.show();
     }
 
-    private void sendSmsAndCall(String number, String customNote) {
+    private void sendSmsAndCall(String name, String number, String customNote) {
         if (!allPermissionsGranted()) {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
             return;
         }
 
-        String message = customNote + " My current location: " + 
-                (lastKnownLocationUrl.isEmpty() ? "Detecting..." : lastKnownLocationUrl);
+        String locationPart = lastKnownLocationUrl.isEmpty() ? "Location unavailable" : lastKnownLocationUrl;
+        String message = customNote + " My current location: " + locationPart;
 
         try {
             SmsManager smsManager;
@@ -535,15 +610,18 @@ public class MainActivity extends AppCompatActivity {
             callIntent.setData(Uri.parse("tel:" + cleanNumber));
             startActivity(callIntent);
             
-            startActivity(new Intent(MainActivity.this, CallingActivity.class));
+            Intent statusIntent = new Intent(MainActivity.this, CallingActivity.class);
+            statusIntent.putExtra("contact_name", name);
+            statusIntent.putExtra("contact_number", cleanNumber);
+            startActivity(statusIntent);
 
         } catch (Exception e) {
             Toast.makeText(this, "Action failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    private void makeQuickCall(String number) {
-        sendSmsAndCall(number, "Emergency call initiated.");
+    private void makeQuickCall(String name, String number) {
+        sendSmsAndCall(name, number, "Emergency call initiated.");
     }
 
     private void triggerSOS() {
@@ -552,13 +630,34 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        // Try to get immediate location if not yet detected
+        if (lastKnownLocationUrl.isEmpty()) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
+                    if (location != null) {
+                        currentBestLocation = location;
+                        lastKnownLocationUrl = "https://www.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude();
+                        proceedWithSOS();
+                    } else {
+                        proceedWithSOS(); // Send anyway if location still null
+                    }
+                });
+            } else {
+                proceedWithSOS();
+            }
+        } else {
+            proceedWithSOS();
+        }
+    }
+
+    private void proceedWithSOS() {
         String reason = etSosReason != null ? etSosReason.getText().toString().trim() : "";
         String customTemplate = sharedPreferences.getString("custom_sos_message", "EMERGENCY! I need help.");
         
+        String locationPart = lastKnownLocationUrl.isEmpty() ? "Location unavailable" : lastKnownLocationUrl;
         String message = customTemplate + 
                 (reason.isEmpty() ? "" : " Reason: " + reason) +
-                " My current location: " + 
-                (lastKnownLocationUrl.isEmpty() ? "Detecting..." : lastKnownLocationUrl) + 
+                " My current location: " + locationPart + 
                 ". SOS from S.O.S. App.";
         
         saveAlert("SOS Triggered", "Emergency alert sent to " + contactList.size() + " contacts.");
@@ -571,7 +670,7 @@ public class MainActivity extends AppCompatActivity {
                 smsManager = SmsManager.getDefault();
             }
 
-            // Notify ALL contacts via SMS with multipart support for long messages
+            // Notify ALL contacts via SMS
             ArrayList<String> parts = smsManager.divideMessage(message);
             for (Contact contact : contactList) {
                 String cleanNumber = contact.number.replaceAll("\\s+", "");
@@ -580,34 +679,36 @@ public class MainActivity extends AppCompatActivity {
             
             Toast.makeText(this, "SOS Sent to " + contactList.size() + " contacts", Toast.LENGTH_SHORT).show();
 
-            // Prompt for SOS Number Call
+            // Prompt for SOS Voice Call after SMS are sent
+            String sosLabel = contactList.size() > 1 ? "Group SOS (" + contactList.size() + ")" : "SOS Call";
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setTitle("SOS Voice Call");
-            builder.setMessage("SMS Alerts sent to list. Enter specific number to call & text now:");
-
-            final EditText input = new EditText(this);
-            input.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
-            input.setText(contactList.get(0).number);
-
-            LinearLayout container = new LinearLayout(this);
-            container.setOrientation(LinearLayout.VERTICAL);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            params.setMargins(50, 20, 50, 0);
-            input.setLayoutParams(params);
-            container.addView(input);
-            builder.setView(container);
-
-            builder.setPositiveButton("Call & Text Now", (dialog, which) -> {
-                String number = input.getText().toString().trim();
-                if (!number.isEmpty()) {
-                    sendSmsAndCall(number, "EMERGENCY CALL: " + customTemplate);
-                }
-            });
-            builder.setNegativeButton("Skip Call", (dialog, which) -> {
-                startActivity(new Intent(MainActivity.this, CallingActivity.class));
-            });
             builder.setCancelable(false);
+
+            if (contactList.size() > 1) {
+                String[] names = new String[contactList.size()];
+                for (int i = 0; i < contactList.size(); i++) {
+                    names[i] = contactList.get(i).name + " (" + contactList.get(i).number + ")";
+                }
+                builder.setMessage("SMS alerts sent to " + contactList.size() + " contacts. Select one to call now:");
+                builder.setItems(names, (dialog, which) -> {
+                    Contact c = contactList.get(which);
+                    sendSmsAndCall(sosLabel, c.number, "EMERGENCY: " + customTemplate);
+                });
+            } else {
+                Contact c = contactList.get(0);
+                builder.setMessage("SMS alert sent to " + c.name + ". Call them now?");
+                builder.setPositiveButton("Call Now", (dialog, which) -> {
+                    sendSmsAndCall(sosLabel, c.number, "EMERGENCY: " + customTemplate);
+                });
+            }
+
+            builder.setNegativeButton("Skip Call", (dialog, which) -> {
+                Intent intent = new Intent(MainActivity.this, CallingActivity.class);
+                intent.putExtra("contact_name", sosLabel);
+                intent.putExtra("contact_number", "SMS Sent to All");
+                startActivity(intent);
+            });
             builder.show();
 
         } catch (Exception e) {

@@ -68,7 +68,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:alpha="0.8"
-        android:text="911"
+        android:text="..."
         android:textColor="@color/white"
         android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"

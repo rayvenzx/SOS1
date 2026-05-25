@@ -43,6 +43,11 @@ public class SafetyTipsActivity extends AppCompatActivity {
         tipsList.add(new Tip("Trust Your Gut", "If a situation feels wrong, don't hesitate to use the SOS features or leave the area immediately."));
         tipsList.add(new Tip("Self Defense", "Awareness is your best defense. Stay alert of your surroundings and avoid using headphones in unfamiliar areas."));
         tipsList.add(new Tip("Fire Safety", "In case of fire, stay low to the ground to avoid smoke. Check doors for heat before opening them."));
+        tipsList.add(new Tip("Road Safety", "If your car breaks down, stay inside with doors locked if you feel unsafe. Use the SOS app to alert your family."));
+        tipsList.add(new Tip("Natural Disasters", "In an earthquake, Drop, Cover, and Hold on. In a flood, move to higher ground immediately."));
+        tipsList.add(new Tip("First Aid Basics", "Learn basic CPR and how to stop bleeding. These skills can save lives before professional help arrives."));
+        tipsList.add(new Tip("Personal Privacy", "Don't share your live location on social media. Use this app's secure sharing with trusted contacts only."));
+        tipsList.add(new Tip("Home Security", "Keep your doors and windows locked. Install good lighting around your house to deter intruders."));
     }
 
     private void displayRandomTip() {

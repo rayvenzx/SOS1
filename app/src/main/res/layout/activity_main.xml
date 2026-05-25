@@ -5,6 +5,7 @@
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -28,8 +29,10 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="@drawable/bg_circle_icon"
+                android:backgroundTint="@color/white"
                 android:padding="8dp"
-                android:src="@drawable/lines" />
+                android:src="@drawable/lines"
+                 />
 
             <TextView
                 android:layout_width="0dp"
@@ -47,19 +50,24 @@
                 android:layout_height="40dp"
                 android:layout_marginEnd="16dp"
                 android:background="@drawable/bg_circle_icon"
+                android:backgroundTint="@color/white"
                 android:padding="4dp"
-                android:src="@drawable/dp" />
+                android:src="@drawable/dp"
+                />
 
             <ImageView
                 android:id="@+id/ivLocationIcon"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="@drawable/bg_circle_icon"
+                android:backgroundTint="@color/white"
                 android:padding="8dp"
-                android:src="@drawable/loc" />
+                android:src="@drawable/loc"
+                 />
         </LinearLayout>
 
         <ScrollView
+            android:id="@+id/mainScrollView"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             app:layout_constraintBottom_toTopOf="@id/bottomNavigation"
@@ -108,8 +116,10 @@
                         android:layout_height="85dp"
                         android:layout_marginHorizontal="12dp"
                         android:background="@drawable/bg_circle_icon"
-                        android:padding="12dp"
-                        android:src="@drawable/popo" />
+                        android:backgroundTint="@color/white"
+                        android:padding="16dp"
+                        android:src="@drawable/popo"
+                         />
 
                     <ImageView
                         android:id="@+id/cvMedical"
@@ -117,8 +127,10 @@
                         android:layout_height="85dp"
                         android:layout_marginHorizontal="12dp"
                         android:background="@drawable/bg_circle_icon"
-                        android:padding="12dp"
-                        android:src="@drawable/ambu1" />
+                        android:backgroundTint="@color/white"
+                        android:padding="16dp"
+                        android:src="@drawable/ambu1"
+                         />
 
                     <ImageView
                         android:id="@+id/cvFire"
@@ -126,8 +138,10 @@
                         android:layout_height="85dp"
                         android:layout_marginHorizontal="12dp"
                         android:background="@drawable/bg_circle_icon"
-                        android:padding="12dp"
-                        android:src="@drawable/fire" />
+                        android:backgroundTint="@color/white"
+                        android:padding="16dp"
+                        android:src="@drawable/fire"
+                         />
                 </LinearLayout>
 
                 <!-- Large Circular SOS Button -->
@@ -163,6 +177,7 @@
                     </androidx.cardview.widget.CardView>
                 </FrameLayout>
 
+                <!-- Hidden Map for OSMDroid initialization -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -174,7 +189,6 @@
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
-                <!-- Hidden Map for OSMDroid initialization -->
                 <org.osmdroid.views.MapView
                     android:id="@+id/map"
                     android:layout_width="1dp"
@@ -200,12 +214,12 @@
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottomNavigation"
             style="@style/Widget.App.BottomNavigationView"
-            android:layout_width="370dp"
-            android:layout_height="118dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:background="@color/white"
+            app:itemIconTint="@null"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:menu="@menu/bottom_nav_menu"
-            tools:layout_editor_absoluteX="-4dp" />
+            app:menu="@menu/bottom_nav_menu" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
