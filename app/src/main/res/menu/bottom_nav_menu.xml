@@ -2,18 +2,22 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_home"
-        android:icon="@drawable/ic_home_modern"
+        android:icon="@drawable/ic_nav_home"
         android:title="Home" />
     <item
-        android:id="@+id/nav_history"
-        android:icon="@drawable/ic_history_modern"
-        android:title="History" />
+        android:id="@+id/nav_group_sos"
+        android:icon="@drawable/ic_nav_group"
+        android:title="Group SOS" />
     <item
-        android:id="@+id/nav_safety"
-        android:icon="@drawable/ic_safety_modern"
-        android:title="Safety" />
+        android:id="@+id/nav_call"
+        android:icon="@drawable/ic_nav_call"
+        android:title="Call" />
     <item
-        android:id="@+id/nav_profile"
-        android:icon="@drawable/ic_profile_modern"
-        android:title="Profile" />
+        android:id="@+id/nav_panic_alarm"
+        android:icon="@drawable/ic_nav_panic"
+        android:title="Panic" />
+    <item
+        android:id="@+id/nav_settings"
+        android:icon="@drawable/ic_nav_settings"
+        android:title="Settings" />
 </menu>

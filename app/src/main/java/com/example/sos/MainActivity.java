@@ -47,6 +47,11 @@ import com.google.firebase.auth.FirebaseAuth;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.osmdroid.config.Configuration;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -75,6 +80,8 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout llContactList;
     private SharedPreferences sharedPreferences;
     private List<Contact> contactList = new ArrayList<>();
+    private MapView map = null;
+    private Marker userMarker = null;
 
     private ActivityResultLauncher<Intent> contactPickerLauncher;
 
@@ -90,9 +97,48 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // OSMDroid configuration
+        Configuration.getInstance().load(this, sharedPreferences != null ? sharedPreferences : getSharedPreferences("SOS_Prefs", Context.MODE_PRIVATE));
+
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+
+        // Drawer Setup
+        androidx.drawerlayout.widget.DrawerLayout drawerLayout = findViewById(R.id.drawerLayout);
+        findViewById(R.id.btnMenu).setOnClickListener(v -> drawerLayout.openDrawer(androidx.core.view.GravityCompat.START));
+        
+        com.google.android.material.navigation.NavigationView navigationView = findViewById(R.id.navigationView);
+        navigationView.setNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.nav_add_member) {
+                showAddContactDialog();
+            } else if (id == R.id.nav_view_members) {
+                // Future view members logic
+                Toast.makeText(this, "View Members", Toast.LENGTH_SHORT).show();
+            } else if (id == R.id.nav_sos_message) {
+                startActivity(new Intent(this, ProfileActivity.class));
+            } else if (id == R.id.nav_share || id == R.id.nav_suggestions || id == R.id.nav_support 
+                    || id == R.id.nav_feedback || id == R.id.nav_rate || id == R.id.nav_terms 
+                    || id == R.id.nav_privacy || id == R.id.nav_disclaimer) {
+                Toast.makeText(this, item.getTitle() + " feature coming soon", Toast.LENGTH_SHORT).show();
+            }
+            drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START);
+            return true;
+        });
+
+        // Handle Profile/Login icon logic
+        ImageView ivProfileIcon = findViewById(R.id.ivProfileIcon);
+        if (ivProfileIcon != null) {
+            if (FirebaseAuth.getInstance().getCurrentUser() != null) {
+                // User is logged in, hide the icon as requested
+                ivProfileIcon.setVisibility(View.GONE);
+            } else {
+                // User is NOT logged in, show the icon and allow redirect to login
+                ivProfileIcon.setVisibility(View.VISIBLE);
+                ivProfileIcon.setOnClickListener(v -> startActivity(new Intent(this, LoginActivity.class)));
+            }
+        }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         tvLocationStatus = findViewById(R.id.tvLocationStatus);
@@ -135,39 +181,24 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        findViewById(R.id.btnAddContact).setOnClickListener(v -> {
-            if (contactList.size() >= 20) {
-                Toast.makeText(this, "Maximum 20 contacts allowed", Toast.LENGTH_SHORT).show();
-            } else {
-                showAddContactDialog();
-            }
-        });
-
-        setupToolbarButtons();
         setupQuickServiceButtons();
         setupBottomNavigation();
         setupTrackingCard();
+        initMap();
+    }
+
+    private void initMap() {
+        map = findViewById(R.id.map);
+        map.setTileSource(TileSourceFactory.MAPNIK);
+        map.setMultiTouchControls(true);
+        map.getController().setZoom(15.0);
     }
 
     private void setupTrackingCard() {
-        findViewById(R.id.cvTracking).setOnClickListener(v -> {
-            if (currentBestLocation != null) {
-                // Force a fresh lookup
-                new Thread(() -> {
-                    String address = getAddressFromLocation(currentBestLocation);
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Current Address: " + address, Toast.LENGTH_LONG).show();
-                        if (tvLocationStatus != null) {
-                            tvLocationStatus.setText(address);
-                        }
-                    });
-                }).start();
-            } else {
-                Toast.makeText(this, "Waiting for GPS signal...", Toast.LENGTH_SHORT).show();
-                if (allPermissionsGranted()) {
-                    startLocationUpdates();
-                }
-            }
+        // Location area is now static/non-clickable
+        findViewById(R.id.ivLocationIcon).setOnClickListener(v -> {
+            // Open the map to show where the user is
+            startActivity(new Intent(MainActivity.this, FullMapActivity.class));
         });
     }
 
@@ -368,8 +399,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
-                .setMinUpdateIntervalMillis(5000)
+        // Optimized for high accuracy and faster updates (especially useful for PH urban areas)
+        LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
+                .setMinUpdateIntervalMillis(2000)
+                .setWaitForAccurateLocation(true)
+                .setMaxUpdateDelayMillis(10000)
                 .build();
 
         locationCallback = new LocationCallback() {
@@ -380,13 +414,19 @@ public class MainActivity extends AppCompatActivity {
                         currentBestLocation = location;
                         lastKnownLocationUrl = "https://www.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude();
                         
+                        float accuracy = location.getAccuracy();
                         String address = getAddressFromLocation(location);
+                        
                         if (tvLocationStatus != null) {
-                            tvLocationStatus.setText(address.equals("Address not found") ? "Live tracking active" : address);
+                            String statusText = (address.equals("Address not found") ? "Tracking Active" : address) + 
+                                              " (" + Math.round(accuracy) + "m)";
+                            tvLocationStatus.setText(statusText);
                         }
+
+                        updateMapLocation(location);
                         
                         // Log location update occasionally
-                        saveAlert("Location Update", "Tracked at: " + (address.equals("Address not found") ? location.getLatitude() + ", " + location.getLongitude() : address));
+                        saveAlert("Location Update", "Accuracy: " + Math.round(accuracy) + "m | At: " + address);
                     }
                 }
             }
@@ -395,20 +435,39 @@ public class MainActivity extends AppCompatActivity {
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
     }
 
+    private void updateMapLocation(Location location) {
+        if (map == null) return;
+
+        GeoPoint startPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
+        map.getController().animateTo(startPoint);
+
+        if (userMarker == null) {
+            userMarker = new Marker(map);
+            userMarker.setTitle("You are here");
+            userMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+            map.getOverlays().add(userMarker);
+        }
+        userMarker.setPosition(startPoint);
+        map.invalidate();
+    }
+
     private void setupBottomNavigation() {
         com.google.android.material.bottomnavigation.BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_home) {
                 return true;
-            } else if (id == R.id.nav_safety) {
-                startActivity(new Intent(this, SafetyTipsActivity.class));
+            } else if (id == R.id.nav_group_sos) {
+                startActivity(new Intent(this, GroupSosActivity.class));
                 return true;
-            } else if (id == R.id.nav_history) {
-                startActivity(new Intent(this, AlertsActivity.class));
+            } else if (id == R.id.nav_settings) {
+                startActivity(new Intent(this, ProfileActivity.class)); // Assuming Profile handles settings for now
                 return true;
-            } else if (id == R.id.nav_profile) {
-                startActivity(new Intent(this, ProfileActivity.class));
+            } else if (id == R.id.nav_call) {
+                showCallInputDialog("Emergency", "911");
+                return true;
+            } else if (id == R.id.nav_panic_alarm) {
+                triggerSOS();
                 return true;
             }
             return false;
@@ -416,19 +475,75 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupQuickServiceButtons() {
-        findViewById(R.id.cvPolice).setOnClickListener(v -> makeQuickCall("911"));
-        findViewById(R.id.cvMedical).setOnClickListener(v -> makeQuickCall("911"));
-        findViewById(R.id.cvFire).setOnClickListener(v -> makeQuickCall("911"));
+        findViewById(R.id.cvPolice).setOnClickListener(v -> showCallInputDialog("Police", "911"));
+        findViewById(R.id.cvMedical).setOnClickListener(v -> showCallInputDialog("Medical", "911"));
+        findViewById(R.id.cvFire).setOnClickListener(v -> showCallInputDialog("Fire", "911"));
+    }
+
+    private void showCallInputDialog(String serviceName, String defaultNumber) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Call " + serviceName);
+        
+        final EditText input = new EditText(this);
+        input.setHint("Enter Number");
+        input.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
+        input.setText(defaultNumber);
+        
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(50, 20, 50, 0);
+        input.setLayoutParams(params);
+        container.addView(input);
+        builder.setView(container);
+
+        builder.setPositiveButton("Call & Text", (dialog, which) -> {
+            String number = input.getText().toString().trim();
+            if (!number.isEmpty()) {
+                sendSmsAndCall(number, "Emergency " + serviceName + " alert triggered. I need assistance.");
+            }
+        });
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+
+    private void sendSmsAndCall(String number, String customNote) {
+        if (!allPermissionsGranted()) {
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
+            return;
+        }
+
+        String message = customNote + " My current location: " + 
+                (lastKnownLocationUrl.isEmpty() ? "Detecting..." : lastKnownLocationUrl);
+
+        try {
+            SmsManager smsManager;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                smsManager = getSystemService(SmsManager.class);
+            } else {
+                smsManager = SmsManager.getDefault();
+            }
+
+            String cleanNumber = number.replaceAll("\\s+", "");
+            ArrayList<String> parts = smsManager.divideMessage(message);
+            smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
+            
+            Toast.makeText(this, "SMS Alert Sent", Toast.LENGTH_SHORT).show();
+
+            Intent callIntent = new Intent(Intent.ACTION_CALL);
+            callIntent.setData(Uri.parse("tel:" + cleanNumber));
+            startActivity(callIntent);
+            
+            startActivity(new Intent(MainActivity.this, CallingActivity.class));
+
+        } catch (Exception e) {
+            Toast.makeText(this, "Action failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void makeQuickCall(String number) {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-            Intent callIntent = new Intent(Intent.ACTION_CALL);
-            callIntent.setData(Uri.parse("tel:" + number));
-            startActivity(callIntent);
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CALL_PHONE}, REQUEST_CODE_PERMISSIONS);
-        }
+        sendSmsAndCall(number, "Emergency call initiated.");
     }
 
     private void triggerSOS() {
@@ -442,12 +557,11 @@ public class MainActivity extends AppCompatActivity {
         
         String message = customTemplate + 
                 (reason.isEmpty() ? "" : " Reason: " + reason) +
-                " My current location is: " + 
+                " My current location: " + 
                 (lastKnownLocationUrl.isEmpty() ? "Detecting..." : lastKnownLocationUrl) + 
                 ". SOS from S.O.S. App.";
         
-        saveAlert("SOS Triggered", "Emergency alert sent to " + contactList.size() + " contacts." + 
-                (reason.isEmpty() ? "" : " Reason: " + reason));
+        saveAlert("SOS Triggered", "Emergency alert sent to " + contactList.size() + " contacts.");
 
         try {
             SmsManager smsManager;
@@ -457,21 +571,44 @@ public class MainActivity extends AppCompatActivity {
                 smsManager = SmsManager.getDefault();
             }
 
-            // Notify ALL contacts via SMS
+            // Notify ALL contacts via SMS with multipart support for long messages
+            ArrayList<String> parts = smsManager.divideMessage(message);
             for (Contact contact : contactList) {
                 String cleanNumber = contact.number.replaceAll("\\s+", "");
-                smsManager.sendTextMessage(cleanNumber, null, message, null, null);
+                smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
             }
             
             Toast.makeText(this, "SOS Sent to " + contactList.size() + " contacts", Toast.LENGTH_SHORT).show();
 
-            // Call the FIRST contact in the list
-            String firstContactNumber = contactList.get(0).number.replaceAll("\\s+", "");
-            Intent callIntent = new Intent(Intent.ACTION_CALL);
-            callIntent.setData(Uri.parse("tel:" + firstContactNumber));
-            startActivity(callIntent);
+            // Prompt for SOS Number Call
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("SOS Voice Call");
+            builder.setMessage("SMS Alerts sent to list. Enter specific number to call & text now:");
 
-            startActivity(new Intent(MainActivity.this, CallingActivity.class));
+            final EditText input = new EditText(this);
+            input.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
+            input.setText(contactList.get(0).number);
+
+            LinearLayout container = new LinearLayout(this);
+            container.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            params.setMargins(50, 20, 50, 0);
+            input.setLayoutParams(params);
+            container.addView(input);
+            builder.setView(container);
+
+            builder.setPositiveButton("Call & Text Now", (dialog, which) -> {
+                String number = input.getText().toString().trim();
+                if (!number.isEmpty()) {
+                    sendSmsAndCall(number, "EMERGENCY CALL: " + customTemplate);
+                }
+            });
+            builder.setNegativeButton("Skip Call", (dialog, which) -> {
+                startActivity(new Intent(MainActivity.this, CallingActivity.class));
+            });
+            builder.setCancelable(false);
+            builder.show();
 
         } catch (Exception e) {
             Toast.makeText(this, "Failed to send SOS: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -513,43 +650,6 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    private void setupToolbarButtons() {
-        findViewById(R.id.ivLogout).setOnClickListener(v -> {
-            FirebaseAuth.getInstance().signOut();
-            startActivity(new Intent(MainActivity.this, LoginActivity.class));
-            finish();
-        });
-
-        findViewById(R.id.ivSettings).setOnClickListener(v -> showCustomMessageDialog());
-    }
-
-    private void showCustomMessageDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Customize SOS Message");
-        
-        final EditText input = new EditText(this);
-        input.setHint("e.g., I'm in trouble, please help!");
-        String currentMessage = sharedPreferences.getString("custom_sos_message", "EMERGENCY! I need help.");
-        input.setText(currentMessage);
-        
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT);
-        input.setLayoutParams(lp);
-        builder.setView(input);
-
-        builder.setPositiveButton("Save", (dialog, which) -> {
-            String newMessage = input.getText().toString().trim();
-            if (!newMessage.isEmpty()) {
-                sharedPreferences.edit().putString("custom_sos_message", newMessage).apply();
-                Toast.makeText(this, "SOS Message updated", Toast.LENGTH_SHORT).show();
-            }
-        });
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
-
-        builder.show();
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -563,18 +663,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onPause() {
+    public void onPause() {
         super.onPause();
         if (fusedLocationClient != null && locationCallback != null) {
             fusedLocationClient.removeLocationUpdates(locationCallback);
         }
+        if (map != null) {
+            map.onPause();
+        }
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
         if (allPermissionsGranted()) {
             startLocationUpdates();
+        }
+        if (map != null) {
+            map.onResume();
         }
     }
 }

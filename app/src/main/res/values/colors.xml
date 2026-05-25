@@ -12,4 +12,8 @@
     <color name="police_blue">#1976D2</color>
     <color name="fire_red">#D32F2F</color>
     <color name="medical_green">#388E3C</color>
+    <color name="settings_blue">#007AFF</color>
+    <color name="settings_green">#34C759</color>
+    <color name="settings_orange">#FF9500</color>
+    <color name="settings_bg">#F2F2F7</color>
 </resources>

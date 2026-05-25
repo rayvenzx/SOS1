@@ -76,24 +76,6 @@
         app:layout_constraintTop_toBottomOf="@id/tvCallerName" />
 
     <!-- Profile Avatar -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cvAvatar"
-        android:layout_width="140dp"
-        android:layout_height="140dp"
-        android:layout_marginTop="40dp"
-        app:cardCornerRadius="70dp"
-        app:cardElevation="8dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvPhoneNumber">
-
-        <ImageView
-            android:id="@+id/ivAvatar"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:src="@drawable/cll" />
-    </androidx.cardview.widget.CardView>
 
     <!-- Controls Container -->
     <androidx.cardview.widget.CardView
@@ -104,8 +86,7 @@
         app:cardCornerRadius="24dp"
         app:cardElevation="12dp"
         app:layout_constraintBottom_toTopOf="@id/btnEndCall"
-        app:layout_constraintTop_toBottomOf="@id/cvAvatar"
-        app:layout_constraintVertical_bias="0.8">
+        tools:layout_editor_absoluteX="24dp">
 
         <GridLayout
             android:layout_width="match_parent"
@@ -123,6 +104,7 @@
                 android:layout_columnWeight="1"
                 android:gravity="center"
                 android:orientation="vertical">
+
                 <ImageView
                     android:layout_width="48dp"
                     android:layout_height="48dp"
@@ -130,6 +112,7 @@
                     android:padding="10dp"
                     android:src="@android:drawable/ic_lock_silent_mode"
                     app:tint="@color/text_grey" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -147,6 +130,7 @@
                 android:layout_columnWeight="1"
                 android:gravity="center"
                 android:orientation="vertical">
+
                 <ImageView
                     android:layout_width="48dp"
                     android:layout_height="48dp"
@@ -154,6 +138,7 @@
                     android:padding="10dp"
                     android:src="@android:drawable/ic_dialog_dialer"
                     app:tint="@color/text_grey" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -171,6 +156,7 @@
                 android:layout_columnWeight="1"
                 android:gravity="center"
                 android:orientation="vertical">
+
                 <ImageView
                     android:layout_width="48dp"
                     android:layout_height="48dp"
@@ -178,6 +164,7 @@
                     android:padding="10dp"
                     android:src="@android:drawable/ic_lock_silent_mode_off"
                     app:tint="@color/primary" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -196,6 +183,7 @@
                 android:layout_marginTop="24dp"
                 android:gravity="center"
                 android:orientation="vertical">
+
                 <ImageView
                     android:layout_width="48dp"
                     android:layout_height="48dp"
@@ -203,6 +191,7 @@
                     android:padding="10dp"
                     android:src="@android:drawable/presence_video_online"
                     app:tint="@color/text_grey" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -221,6 +210,7 @@
                 android:layout_marginTop="24dp"
                 android:gravity="center"
                 android:orientation="vertical">
+
                 <ImageView
                     android:layout_width="48dp"
                     android:layout_height="48dp"
@@ -228,6 +218,7 @@
                     android:padding="10dp"
                     android:src="@android:drawable/ic_menu_add"
                     app:tint="@color/text_grey" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -246,6 +237,7 @@
                 android:layout_marginTop="24dp"
                 android:gravity="center"
                 android:orientation="vertical">
+
                 <ImageView
                     android:layout_width="48dp"
                     android:layout_height="48dp"
@@ -253,6 +245,7 @@
                     android:padding="10dp"
                     android:src="@android:drawable/ic_btn_speak_now"
                     app:tint="@color/text_grey" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

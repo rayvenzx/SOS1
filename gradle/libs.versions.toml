@@ -13,6 +13,7 @@ googleGmsGoogleServices = "4.4.4"
 firebaseAppCheck = "18.0.0"
 firebaseMessaging = "25.0.2"
 firebaseInappmessagingDisplay = "22.0.3"
+googleFirebaseAppdistribution = "5.2.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -31,4 +32,5 @@ firebase-inappmessaging-display = { group = "com.google.firebase", name = "fireb
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
+google-firebase-appdistribution = { id = "com.google.firebase.appdistribution", version.ref = "googleFirebaseAppdistribution" }
 

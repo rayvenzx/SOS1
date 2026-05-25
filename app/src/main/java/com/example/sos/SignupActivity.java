@@ -76,16 +76,6 @@ public class SignupActivity extends AppCompatActivity {
             return;
         }
 
-        if (!phoneNumber.startsWith("+")) {
-            etUserPhoneNumber.setError("Start with country code (e.g., +1 for USA, +91 for India)");
-            return;
-        }
-
-        if (phoneNumber.length() < 11) {
-            etUserPhoneNumber.setError("Enter a valid international phone number");
-            return;
-        }
-
         if (TextUtils.isEmpty(password)) {
             etPassword.setError("Password is required");
             return;
@@ -96,12 +86,35 @@ public class SignupActivity extends AppCompatActivity {
             return;
         }
 
-        // Start OTP Verification Activity instead of direct registration
-        Intent intent = new Intent(SignupActivity.this, OtpVerificationActivity.class);
-        intent.putExtra("fullName", fullName);
-        intent.putExtra("email", email);
-        intent.putExtra("phoneNumber", phoneNumber);
-        intent.putExtra("password", password);
-        startActivity(intent);
+        btnSignup.setEnabled(false);
+        btnSignup.setText("Registering...");
+
+        mAuth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener(this, task -> {
+                    if (task.isSuccessful()) {
+                        FirebaseUser user = task.getResult().getUser();
+                        if (user != null) {
+                            // Save phone number to SharedPreferences
+                            sharedPreferences.edit()
+                                    .putString("user_phone_" + user.getUid(), phoneNumber)
+                                    .apply();
+
+                            // Update Profile (Name)
+                            UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
+                                    .setDisplayName(fullName)
+                                    .build();
+                            user.updateProfile(profileUpdates);
+                        }
+
+                        Toast.makeText(SignupActivity.this, "Registration successful", Toast.LENGTH_SHORT).show();
+                        startActivity(new Intent(SignupActivity.this, MainActivity.class));
+                        finishAffinity();
+                    } else {
+                        btnSignup.setEnabled(true);
+                        btnSignup.setText("Sign Up");
+                        Toast.makeText(SignupActivity.this, "Registration failed: " + task.getException().getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 }

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:text="Select Member Type"
+            android:textColor="@color/black"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/ivClose"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentEnd="true"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            app:tint="#007AFF" />
+    </RelativeLayout>
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_search_bar"
+        android:drawableStart="@android:drawable/ic_menu_search"
+        android:drawablePadding="8dp"
+        android:hint="Search types..."
+        android:paddingHorizontal="12dp"
+        android:textSize="14sp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="400dp"
+        android:layout_marginTop="16dp">
+
+        <LinearLayout
+            android:id="@+id/llMemberTypesContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView style="@style/MemberTypeItem" android:text="Family" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Friend" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Work" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Other" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Doctor" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Neighbor" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Emergency" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="School" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Teacher" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Boss" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Colleague" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Client" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Police" />
+            <View style="@style/Divider" />
+            <TextView style="@style/MemberTypeItem" android:text="Hospital" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

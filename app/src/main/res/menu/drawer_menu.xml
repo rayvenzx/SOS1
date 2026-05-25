@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_add_member"
+        android:icon="@android:drawable/ic_menu_add"
+        android:title="Add Member" />
+    <item
+        android:id="@+id/nav_sos_message"
+        android:icon="@android:drawable/ic_dialog_email"
+        android:title="SOS Message" />
+    <item
+        android:id="@+id/nav_view_members"
+        android:icon="@android:drawable/ic_menu_view"
+        android:title="View Members" />
+    <item
+        android:id="@+id/nav_share"
+        android:icon="@android:drawable/ic_menu_share"
+        android:title="Share" />
+    <item
+        android:id="@+id/nav_suggestions"
+        android:icon="@android:drawable/ic_menu_help"
+        android:title="Suggestions" />
+    <item
+        android:id="@+id/nav_support"
+        android:icon="@android:drawable/ic_menu_call"
+        android:title="Support" />
+    <item
+        android:id="@+id/nav_feedback"
+        android:icon="@android:drawable/btn_star_big_on"
+        android:title="Feedback" />
+    <item
+        android:id="@+id/nav_rate"
+        android:icon="@android:drawable/btn_star"
+        android:title="Rate &amp; Review" />
+    <item
+        android:id="@+id/nav_terms"
+        android:icon="@android:drawable/ic_menu_info_details"
+        android:title="Terms &amp; Conditions" />
+    <item
+        android:id="@+id/nav_privacy"
+        android:icon="@android:drawable/ic_lock_lock"
+        android:title="Privacy Policy" />
+    <item
+        android:id="@+id/nav_disclaimer"
+        android:icon="@android:drawable/ic_dialog_alert"
+        android:title="Disclaimer" />
+</menu>
