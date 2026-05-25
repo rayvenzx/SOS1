@@ -9,6 +9,7 @@ import android.database.Cursor;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Looper;
@@ -631,7 +632,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void makeQuickCall(String name, String number) {
-        sendSmsAndCall(name, number, "Emergency call initiated.");
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            String cleanNumber = number.replaceAll("[^0-9+*#]", "");
+            try {
+                Intent callIntent = new Intent(Intent.ACTION_CALL);
+                callIntent.setData(Uri.parse("tel:" + cleanNumber));
+                startActivity(callIntent);
+
+                Intent statusIntent = new Intent(MainActivity.this, CallingActivity.class);
+                statusIntent.putExtra("contact_name", name);
+                statusIntent.putExtra("contact_number", cleanNumber);
+                startActivity(statusIntent);
+            } catch (Exception e) {
+                Toast.makeText(this, "Call failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CALL_PHONE}, REQUEST_CODE_PERMISSIONS);
+        }
     }
 
     private void triggerSOS() {
@@ -645,7 +662,20 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        Toast.makeText(this, "Acquiring precise location...", Toast.LENGTH_SHORT).show();
+        LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (!lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            Toast.makeText(this, "Please enable GPS for accurate location", Toast.LENGTH_LONG).show();
+        }
+
+        Toast.makeText(this, "Acquiring location...", Toast.LENGTH_SHORT).show();
+
+        // Check last known location first as a quick fallback
+        fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
+            if (location != null) {
+                currentBestLocation = location;
+                lastKnownLocationUrl = "https://www.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude();
+            }
+        });
         
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
             .addOnSuccessListener(this, location -> {
@@ -661,22 +691,51 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void proceedWithSOS() {
-        boolean hasSms = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
-        if (!hasSms) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SEND_SMS}, REQUEST_CODE_PERMISSIONS);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Confirm SOS Alert");
+        builder.setCancelable(false);
+
+        if (contactList.size() > 1) {
+            builder.setMessage("This will send SOS SMS to all " + contactList.size() + " contacts and initiate a call. Select primary contact to call:");
+            String[] names = new String[contactList.size()];
+            for (int i = 0; i < contactList.size(); i++) {
+                names[i] = contactList.get(i).name + " (" + contactList.get(i).number + ")";
+            }
+            builder.setItems(names, (dialog, which) -> {
+                Contact c = contactList.get(which);
+                // Recalculate message here to use latest location
+                String message = buildSosMessage();
+                sendSmsToAll(message);
+                makeQuickCall("SOS Call", c.number);
+                saveAlert("SOS Triggered", "Emergency alert initiated.");
+            });
+        } else {
+            Contact c = contactList.get(0);
+            builder.setMessage("Send SOS SMS to " + c.name + " and call them?");
+            builder.setPositiveButton("Send & Call", (dialog, which) -> {
+                String message = buildSosMessage();
+                sendSmsToAll(message);
+                makeQuickCall("SOS Call", c.number);
+                saveAlert("SOS Triggered", "Emergency alert initiated.");
+            });
         }
 
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+        builder.show();
+    }
+
+    private String buildSosMessage() {
         String reason = etSosReason != null ? etSosReason.getText().toString().trim() : "";
         String customTemplate = sharedPreferences.getString("custom_sos_message", "EMERGENCY! I need help.");
-        
         String locationPart = lastKnownLocationUrl.isEmpty() ? "Location unavailable" : lastKnownLocationUrl;
-        String message = customTemplate + 
+        return customTemplate + 
                 (reason.isEmpty() ? "" : " Reason: " + reason) +
                 " My current location: " + locationPart + 
                 ". SOS from S.O.S. App.";
-        
-        saveAlert("SOS Triggered", "Emergency alert initiated.");
+    }
 
+    private void sendSmsToAll(String message) {
+        boolean hasSms = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
         if (hasSms) {
             try {
                 SmsManager smsManager;
@@ -696,33 +755,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Failed to send SMS: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
         }
-
-        // Prompt for SOS Voice Call after SMS are sent
-        String sosLabel = contactList.size() > 1 ? "Group SOS (" + contactList.size() + ")" : "SOS Call";
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("SOS Voice Call");
-        builder.setCancelable(false);
-
-        if (contactList.size() > 1) {
-            String[] names = new String[contactList.size()];
-            for (int i = 0; i < contactList.size(); i++) {
-                names[i] = contactList.get(i).name + " (" + contactList.get(i).number + ")";
-            }
-            builder.setMessage("SMS alerts sent to " + contactList.size() + " contacts. Select one to call now:");
-            builder.setItems(names, (dialog, which) -> {
-                Contact c = contactList.get(which);
-                sendSmsAndCall(sosLabel, c.number, "EMERGENCY: " + customTemplate);
-            });
-        } else {
-            Contact c = contactList.get(0);
-            builder.setMessage("SMS alert sent to " + c.name + ". Call them now?");
-            builder.setPositiveButton("Call Now", (dialog, which) -> {
-                sendSmsAndCall(sosLabel, c.number, "EMERGENCY: " + customTemplate);
-            });
-        }
-
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-        builder.show();
     }
 
     private void saveAlert(String title, String desc) {

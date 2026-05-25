@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.telephony.SmsManager;
@@ -225,7 +226,19 @@ public class PanicActivity extends AppCompatActivity {
             return;
         }
 
+        LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (!lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            Toast.makeText(this, "Please enable GPS for accurate location", Toast.LENGTH_LONG).show();
+        }
+
         Toast.makeText(this, "Acquiring location...", Toast.LENGTH_SHORT).show();
+
+        // Fallback to last known location quickly
+        fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
+            if (location != null) {
+                lastKnownLocationUrl = "https://www.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude();
+            }
+        });
 
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener(this, location -> {
@@ -240,17 +253,10 @@ public class PanicActivity extends AppCompatActivity {
     }
 
     private void proceedWithPanicSOS() {
-        boolean hasSms = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
-        if (!hasSms) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SEND_SMS}, REQUEST_CODE_PERMISSIONS);
-        }
-
-        String customTemplate = sharedPreferences.getString("custom_sos_message", "EMERGENCY! I need help.");
-        String locationPart = lastKnownLocationUrl.isEmpty() ? "Location unavailable" : lastKnownLocationUrl;
-        String message = customTemplate + " My current location: " + locationPart + ". SOS from Panic Alarm.";
-
+        String message = buildPanicMessage();
         saveAlert("Panic SOS", "Emergency alert initiated.");
 
+        boolean hasSms = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
         if (hasSms) {
             try {
                 SmsManager smsManager;
@@ -287,6 +293,12 @@ public class PanicActivity extends AppCompatActivity {
                 .setNeutralButton("Cancel", (dialog, which) -> dialog.dismiss())
                 .setCancelable(false)
                 .show();
+    }
+
+    private String buildPanicMessage() {
+        String customTemplate = sharedPreferences.getString("custom_sos_message", "EMERGENCY! I need help.");
+        String locationPart = lastKnownLocationUrl.isEmpty() ? "Location unavailable" : lastKnownLocationUrl;
+        return customTemplate + " My current location: " + locationPart + ". SOS from Panic Alarm.";
     }
 
     private void sendSmsAndCall(String name, String number, String customNote) {
@@ -328,14 +340,18 @@ public class PanicActivity extends AppCompatActivity {
     private void makeQuickCall(String name, String number) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
             String cleanNumber = number.replaceAll("[^0-9+*#]", "");
-            Intent callIntent = new Intent(Intent.ACTION_CALL);
-            callIntent.setData(Uri.parse("tel:" + cleanNumber));
-            startActivity(callIntent);
+            try {
+                Intent callIntent = new Intent(Intent.ACTION_CALL);
+                callIntent.setData(Uri.parse("tel:" + cleanNumber));
+                startActivity(callIntent);
 
-            Intent statusIntent = new Intent(this, CallingActivity.class);
-            statusIntent.putExtra("contact_name", name);
-            statusIntent.putExtra("contact_number", cleanNumber);
-            startActivity(statusIntent);
+                Intent statusIntent = new Intent(this, CallingActivity.class);
+                statusIntent.putExtra("contact_name", name);
+                statusIntent.putExtra("contact_number", cleanNumber);
+                startActivity(statusIntent);
+            } catch (Exception e) {
+                Toast.makeText(this, "Call failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CALL_PHONE}, REQUEST_CODE_PERMISSIONS);
         }
