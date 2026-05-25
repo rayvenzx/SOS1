@@ -1,32 +1,61 @@
 package com.example.sos;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.telephony.SmsManager;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.navigation.NavigationView;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class GroupSosActivity extends AppCompatActivity {
 
     private LinearLayout llMembersContainer, llEmptyState;
     private SharedPreferences sharedPreferences;
     private List<GroupMember> memberList = new ArrayList<>();
+    private FusedLocationProviderClient fusedLocationClient;
+    private String lastKnownLocationUrl = "";
+
+    private static final int REQUEST_CODE_PERMISSIONS = 101;
+    private final String[] REQUIRED_PERMISSIONS = new String[]{
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+    };
 
     private static class GroupMember {
         String type;
@@ -46,37 +75,129 @@ public class GroupSosActivity extends AppCompatActivity {
         llMembersContainer = findViewById(R.id.llMembersContainer);
         llEmptyState = findViewById(R.id.llEmptyState);
         sharedPreferences = getSharedPreferences("SOS_Prefs", Context.MODE_PRIVATE);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         // Drawer Setup
-        androidx.drawerlayout.widget.DrawerLayout drawerLayout = findViewById(R.id.drawerLayout);
-        findViewById(R.id.btnMenu).setOnClickListener(v -> drawerLayout.openDrawer(androidx.core.view.GravityCompat.START));
+        DrawerLayout drawerLayout = findViewById(R.id.drawerLayout);
+        findViewById(R.id.btnMenu).setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
         findViewById(R.id.ivLocationIcon).setOnClickListener(v -> startActivity(new Intent(this, FullMapActivity.class)));
 
-        com.google.android.material.navigation.NavigationView navigationView = findViewById(R.id.navigationView);
+        NavigationView navigationView = findViewById(R.id.navigationView);
         navigationView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_add_member) {
                 showSelectMemberTypeBottomSheet();
-            } else if (id == R.id.nav_view_members) {
-                // Already displaying members in this activity
-                Toast.makeText(this, "You are viewing members", Toast.LENGTH_SHORT).show();
             } else if (id == R.id.nav_sos_message) {
                 startActivity(new Intent(this, ProfileActivity.class));
-            } else if (id == R.id.nav_share || id == R.id.nav_suggestions || id == R.id.nav_support 
-                    || id == R.id.nav_feedback || id == R.id.nav_rate || id == R.id.nav_terms 
-                    || id == R.id.nav_privacy || id == R.id.nav_disclaimer) {
-                Toast.makeText(this, item.getTitle() + " feature coming soon", Toast.LENGTH_SHORT).show();
             }
-            drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START);
+            drawerLayout.closeDrawer(GravityCompat.START);
             return true;
         });
 
         loadMembers();
+        fetchLocation();
         setupBottomNavigation();
         
-        findViewById(R.id.fabAddMember).setOnClickListener(v -> {
-            showSelectMemberTypeBottomSheet();
+        findViewById(R.id.fabAddMember).setOnClickListener(v -> showSelectMemberTypeBottomSheet());
+
+        findViewById(R.id.btnCallGroup).setOnClickListener(v -> {
+            triggerGroupSOS();
         });
+    }
+
+    private void fetchLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
+                if (location != null) {
+                    lastKnownLocationUrl = "https://www.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude();
+                }
+            });
+        }
+    }
+
+    private void triggerGroupSOS() {
+        if (memberList.isEmpty()) {
+            Toast.makeText(this, "No members in group. Please add some first.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
+            return;
+        }
+
+        Toast.makeText(this, "Fetching precise location...", Toast.LENGTH_SHORT).show();
+
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener(this, location -> {
+                    if (location != null) {
+                        lastKnownLocationUrl = "https://www.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude();
+                    }
+                    proceedWithGroupSOS();
+                })
+                .addOnFailureListener(this, e -> {
+                    proceedWithGroupSOS();
+                });
+    }
+
+    private void proceedWithGroupSOS() {
+        boolean hasSms = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
+        if (!hasSms) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SEND_SMS}, REQUEST_CODE_PERMISSIONS);
+        }
+
+        String customTemplate = sharedPreferences.getString("custom_sos_message", "EMERGENCY! I need help.");
+        String locationPart = lastKnownLocationUrl.isEmpty() ? "Location unavailable" : lastKnownLocationUrl;
+        String message = customTemplate + " My current location: " + locationPart + ". (Group SOS)";
+
+        saveAlert("Group SOS", "Emergency alert initiated.");
+
+        if (hasSms) {
+            try {
+                SmsManager smsManager;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    smsManager = getSystemService(SmsManager.class);
+                } else {
+                    smsManager = SmsManager.getDefault();
+                }
+
+                ArrayList<String> parts = smsManager.divideMessage(message);
+                for (GroupMember member : memberList) {
+                    String cleanNumber = member.number.replaceAll("[^0-9+*#]", "");
+                    smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
+                }
+                Toast.makeText(this, "SOS Sent to all " + memberList.size() + " group members", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Toast.makeText(this, "Group SOS failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        }
+
+        // Prompt for call
+        GroupMember first = memberList.get(0);
+        new AlertDialog.Builder(this)
+                .setTitle("Group SOS Alert Sent")
+                .setMessage("SMS sent to all group members. Call " + first.type + " (" + first.number + ") now?")
+                .setPositiveButton("Call Now", (dialog, which) -> makeQuickCall(first.type, first.number))
+                .setNegativeButton("Choose Other", (dialog, which) -> showContactSelectionDialog())
+                .setNeutralButton("Cancel", (dialog, which) -> dialog.dismiss())
+                .setCancelable(false)
+                .show();
+    }
+
+    private void showContactSelectionDialog() {
+        String[] items = new String[memberList.size()];
+        for (int i = 0; i < memberList.size(); i++) {
+            items[i] = memberList.get(i).type + " (" + memberList.get(i).number + ")";
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Select Member to Call")
+                .setItems(items, (dialog, which) -> {
+                    GroupMember m = memberList.get(which);
+                    makeQuickCall(m.type, m.number);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void showSelectMemberTypeBottomSheet() {
@@ -188,7 +309,6 @@ public class GroupSosActivity extends AppCompatActivity {
         root.setPadding(32, 32, 32, 32);
         root.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
-        // Icon based on type (simplified)
         ImageView icon = new ImageView(this);
         icon.setLayoutParams(new LinearLayout.LayoutParams(80, 80));
         icon.setImageResource(R.drawable.ic_nav_group);
@@ -244,6 +364,7 @@ public class GroupSosActivity extends AppCompatActivity {
                 return true;
             } else if (id == R.id.nav_settings) {
                 startActivity(new Intent(this, ProfileActivity.class));
+                finish();
                 return true;
             } else if (id == R.id.nav_call) {
                 handleCallAction();
@@ -258,41 +379,13 @@ public class GroupSosActivity extends AppCompatActivity {
     }
 
     private void handleCallAction() {
-        String json = sharedPreferences.getString("contacts_json", "[]");
-        try {
-            JSONArray array = new JSONArray(json);
-            if (array.length() == 0) {
-                showCallInputDialog("Emergency", "911");
-            } else if (array.length() == 1) {
-                JSONObject obj = array.getJSONObject(0);
-                makeQuickCall(obj.getString("name"), obj.getString("number"));
-            } else {
-                showContactSelectionDialog(array);
-            }
-        } catch (JSONException e) {
+        if (memberList.isEmpty()) {
             showCallInputDialog("Emergency", "911");
+        } else if (memberList.size() == 1) {
+            makeQuickCall(memberList.get(0).type, memberList.get(0).number);
+        } else {
+            showContactSelectionDialog();
         }
-    }
-
-    private void showContactSelectionDialog(JSONArray array) throws JSONException {
-        String[] items = new String[array.length()];
-        for (int i = 0; i < array.length(); i++) {
-            JSONObject obj = array.getJSONObject(i);
-            items[i] = obj.getString("name") + " (" + obj.getString("number") + ")";
-        }
-
-        new AlertDialog.Builder(this)
-                .setTitle("Select Contact to Call")
-                .setItems(items, (dialog, which) -> {
-                    try {
-                        JSONObject obj = array.getJSONObject(which);
-                        makeQuickCall(obj.getString("name"), obj.getString("number"));
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
     }
 
     private void showCallInputDialog(String serviceName, String defaultNumber) {
@@ -302,14 +395,7 @@ public class GroupSosActivity extends AppCompatActivity {
         input.setHint("Enter Number");
         input.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
         input.setText(defaultNumber);
-        LinearLayout container = new LinearLayout(this);
-        container.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(50, 20, 50, 0);
-        input.setLayoutParams(params);
-        container.addView(input);
-        builder.setView(container);
+        builder.setView(input);
         builder.setPositiveButton("Call", (dialog, which) -> {
             String number = input.getText().toString().trim();
             if (!number.isEmpty()) {
@@ -321,10 +407,10 @@ public class GroupSosActivity extends AppCompatActivity {
     }
 
     private void makeQuickCall(String name, String number) {
-        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CALL_PHONE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
             String cleanNumber = number.replaceAll("[^0-9+*#]", "");
-            android.content.Intent callIntent = new android.content.Intent(android.content.Intent.ACTION_CALL);
-            callIntent.setData(android.net.Uri.parse("tel:" + cleanNumber));
+            Intent callIntent = new Intent(Intent.ACTION_CALL);
+            callIntent.setData(Uri.parse("tel:" + cleanNumber));
             startActivity(callIntent);
 
             Intent statusIntent = new Intent(this, CallingActivity.class);
@@ -332,7 +418,28 @@ public class GroupSosActivity extends AppCompatActivity {
             statusIntent.putExtra("contact_number", cleanNumber);
             startActivity(statusIntent);
         } else {
-            androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CALL_PHONE}, 101);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CALL_PHONE}, 101);
         }
+    }
+
+    private void saveAlert(String title, String desc) {
+        String time = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+        String alertsJson = sharedPreferences.getString("recent_alerts", "[]");
+        try {
+            JSONArray array = new JSONArray(alertsJson);
+            JSONObject newAlert = new JSONObject();
+            newAlert.put("title", title);
+            newAlert.put("time", time);
+            newAlert.put("desc", desc);
+            array.put(newAlert);
+            sharedPreferences.edit().putString("recent_alerts", array.toString()).apply();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 }

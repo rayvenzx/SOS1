@@ -21,6 +21,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationView;
 
@@ -89,11 +90,7 @@ public class PanicActivity extends AppCompatActivity {
 
         ImageView btnSos = findViewById(R.id.btnSosPanic);
         btnSos.setOnClickListener(v -> {
-            if (allPermissionsGranted()) {
-                triggerPanicSOS();
-            } else {
-                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
-            }
+            triggerPanicSOS();
         });
     }
 
@@ -223,85 +220,125 @@ public class PanicActivity extends AppCompatActivity {
             return;
         }
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
+            return;
+        }
+
+        Toast.makeText(this, "Acquiring location...", Toast.LENGTH_SHORT).show();
+
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener(this, location -> {
+                    if (location != null) {
+                        lastKnownLocationUrl = "https://www.google.com/maps?q=" + location.getLatitude() + "," + location.getLongitude();
+                    }
+                    proceedWithPanicSOS();
+                })
+                .addOnFailureListener(this, e -> {
+                    proceedWithPanicSOS();
+                });
+    }
+
+    private void proceedWithPanicSOS() {
+        boolean hasSms = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
+        if (!hasSms) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SEND_SMS}, REQUEST_CODE_PERMISSIONS);
+        }
+
         String customTemplate = sharedPreferences.getString("custom_sos_message", "EMERGENCY! I need help.");
         String locationPart = lastKnownLocationUrl.isEmpty() ? "Location unavailable" : lastKnownLocationUrl;
         String message = customTemplate + " My current location: " + locationPart + ". SOS from Panic Alarm.";
 
-        saveAlert("Panic SOS", "Emergency alert sent to " + contactList.size() + " contacts.");
+        saveAlert("Panic SOS", "Emergency alert initiated.");
 
-        try {
-            SmsManager smsManager;
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                smsManager = getSystemService(SmsManager.class);
-            } else {
-                smsManager = SmsManager.getDefault();
+        if (hasSms) {
+            try {
+                SmsManager smsManager;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    smsManager = getSystemService(SmsManager.class);
+                } else {
+                    smsManager = SmsManager.getDefault();
+                }
+
+                ArrayList<String> parts = smsManager.divideMessage(message);
+                for (Contact contact : contactList) {
+                    String cleanNumber = contact.number.replaceAll("[^0-9+*#]", "");
+                    smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
+                }
+                Toast.makeText(this, "SOS Text sent to all contacts", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Toast.makeText(this, "Failed to send SMS: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
-
-            // Send SMS to ALL contacts
-            ArrayList<String> parts = smsManager.divideMessage(message);
-            for (Contact contact : contactList) {
-                String cleanNumber = contact.number.replaceAll("[^0-9+*#]", "");
-                smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
-            }
-            
-            Toast.makeText(this, "SOS Text sent to all contacts", Toast.LENGTH_SHORT).show();
-
-            // Then prompt for Call immediately
-            Contact firstContact = contactList.get(0);
-            String sosLabel = contactList.size() > 1 ? "Group SOS (" + contactList.size() + ")" : "SOS Call";
-            
-            new AlertDialog.Builder(this)
-                    .setTitle("SOS Call")
-                    .setMessage("SMS sent to all. Call " + firstContact.name + " now?")
-                    .setPositiveButton("Call Now", (dialog, which) -> {
-                        makeQuickCall(sosLabel, firstContact.number);
-                    })
-                    .setNegativeButton("Choose Other", (dialog, which) -> {
-                        showContactSelectionDialog();
-                    })
-                    .setNeutralButton("Cancel", null)
-                    .setCancelable(false)
-                    .show();
-
-        } catch (Exception e) {
-            Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
+
+        // Then prompt for Call immediately
+        Contact firstContact = contactList.get(0);
+        String sosLabel = contactList.size() > 1 ? "Group SOS (" + contactList.size() + ")" : "SOS Call";
+        
+        new AlertDialog.Builder(this)
+                .setTitle("SOS Call")
+                .setMessage("SMS sent to all. Call " + firstContact.name + " now?")
+                .setPositiveButton("Call Now", (dialog, which) -> {
+                    makeQuickCall(sosLabel, firstContact.number);
+                })
+                .setNegativeButton("Choose Other", (dialog, which) -> {
+                    showContactSelectionDialog();
+                })
+                .setNeutralButton("Cancel", (dialog, which) -> dialog.dismiss())
+                .setCancelable(false)
+                .show();
     }
 
     private void sendSmsAndCall(String name, String number, String customNote) {
+        boolean hasSms = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
+        boolean hasCall = ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED;
+
+        if (!hasSms && !hasCall) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SEND_SMS, Manifest.permission.CALL_PHONE}, REQUEST_CODE_PERMISSIONS);
+            return;
+        }
+
         String locationPart = lastKnownLocationUrl.isEmpty() ? "Location unavailable" : lastKnownLocationUrl;
         String message = customNote + " My location: " + locationPart;
 
-        try {
-            SmsManager smsManager;
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                smsManager = getSystemService(SmsManager.class);
-            } else {
-                smsManager = SmsManager.getDefault();
+        String cleanNumber = number.replaceAll("[^0-9+*#]", "");
+
+        if (hasSms) {
+            try {
+                SmsManager smsManager;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    smsManager = getSystemService(SmsManager.class);
+                } else {
+                    smsManager = SmsManager.getDefault();
+                }
+
+                ArrayList<String> parts = smsManager.divideMessage(message);
+                smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
+                Toast.makeText(this, "SMS Alert Sent", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Toast.makeText(this, "Action failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
-
-            String cleanNumber = number.replaceAll("[^0-9+*#]", "");
-            ArrayList<String> parts = smsManager.divideMessage(message);
-            smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
-            
-            Toast.makeText(this, "SMS Alert Sent", Toast.LENGTH_SHORT).show();
+        }
+        
+        if (hasCall) {
             makeQuickCall(name, number);
-
-        } catch (Exception e) {
-            Toast.makeText(this, "Action failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
     private void makeQuickCall(String name, String number) {
-        String cleanNumber = number.replaceAll("[^0-9+*#]", "");
-        Intent callIntent = new Intent(Intent.ACTION_CALL);
-        callIntent.setData(Uri.parse("tel:" + cleanNumber));
-        startActivity(callIntent);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            String cleanNumber = number.replaceAll("[^0-9+*#]", "");
+            Intent callIntent = new Intent(Intent.ACTION_CALL);
+            callIntent.setData(Uri.parse("tel:" + cleanNumber));
+            startActivity(callIntent);
 
-        Intent statusIntent = new Intent(this, CallingActivity.class);
-        statusIntent.putExtra("contact_name", name);
-        statusIntent.putExtra("contact_number", cleanNumber);
-        startActivity(statusIntent);
+            Intent statusIntent = new Intent(this, CallingActivity.class);
+            statusIntent.putExtra("contact_name", name);
+            statusIntent.putExtra("contact_number", cleanNumber);
+            startActivity(statusIntent);
+        } else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CALL_PHONE}, REQUEST_CODE_PERMISSIONS);
+        }
     }
 
     private void saveAlert(String title, String desc) {
@@ -320,22 +357,8 @@ public class PanicActivity extends AppCompatActivity {
         }
     }
 
-    private boolean allPermissionsGranted() {
-        for (String permission : REQUIRED_PERMISSIONS) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                triggerPanicSOS();
-            }
-        }
     }
 }
