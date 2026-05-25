@@ -527,7 +527,7 @@ public class MainActivity extends AppCompatActivity {
         if (contactList.isEmpty()) {
             showCallInputDialog("Emergency", "911");
         } else if (contactList.size() == 1) {
-            showCallInputDialog(contactList.get(0).name, contactList.get(0).number);
+            sendSmsAndCall(contactList.get(0).name, contactList.get(0).number, "Emergency call initiated. I need help.");
         } else {
             showContactSelectionDialog();
         }
@@ -543,7 +543,7 @@ public class MainActivity extends AppCompatActivity {
                 .setTitle("Select Contact to Call")
                 .setItems(names, (dialog, which) -> {
                     Contact contact = contactList.get(which);
-                    showCallInputDialog(contact.name, contact.number);
+                    sendSmsAndCall(contact.name, contact.number, "Emergency call initiated. I need help.");
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -600,7 +600,7 @@ public class MainActivity extends AppCompatActivity {
                 smsManager = SmsManager.getDefault();
             }
 
-            String cleanNumber = number.replaceAll("\\s+", "");
+            String cleanNumber = number.replaceAll("[^0-9+*#]", "");
             ArrayList<String> parts = smsManager.divideMessage(message);
             smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
             
@@ -673,7 +673,7 @@ public class MainActivity extends AppCompatActivity {
             // Notify ALL contacts via SMS
             ArrayList<String> parts = smsManager.divideMessage(message);
             for (Contact contact : contactList) {
-                String cleanNumber = contact.number.replaceAll("\\s+", "");
+                String cleanNumber = contact.number.replaceAll("[^0-9+*#]", "");
                 smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
             }
             

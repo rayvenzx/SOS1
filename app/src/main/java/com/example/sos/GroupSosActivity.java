@@ -265,7 +265,7 @@ public class GroupSosActivity extends AppCompatActivity {
                 showCallInputDialog("Emergency", "911");
             } else if (array.length() == 1) {
                 JSONObject obj = array.getJSONObject(0);
-                showCallInputDialog(obj.getString("name"), obj.getString("number"));
+                makeQuickCall(obj.getString("name"), obj.getString("number"));
             } else {
                 showContactSelectionDialog(array);
             }
@@ -286,7 +286,7 @@ public class GroupSosActivity extends AppCompatActivity {
                 .setItems(items, (dialog, which) -> {
                     try {
                         JSONObject obj = array.getJSONObject(which);
-                        showCallInputDialog(obj.getString("name"), obj.getString("number"));
+                        makeQuickCall(obj.getString("name"), obj.getString("number"));
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -322,13 +322,14 @@ public class GroupSosActivity extends AppCompatActivity {
 
     private void makeQuickCall(String name, String number) {
         if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CALL_PHONE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            String cleanNumber = number.replaceAll("[^0-9+*#]", "");
             android.content.Intent callIntent = new android.content.Intent(android.content.Intent.ACTION_CALL);
-            callIntent.setData(android.net.Uri.parse("tel:" + number));
+            callIntent.setData(android.net.Uri.parse("tel:" + cleanNumber));
             startActivity(callIntent);
 
             Intent statusIntent = new Intent(this, CallingActivity.class);
             statusIntent.putExtra("contact_name", name);
-            statusIntent.putExtra("contact_number", number);
+            statusIntent.putExtra("contact_number", cleanNumber);
             startActivity(statusIntent);
         } else {
             androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CALL_PHONE}, 101);

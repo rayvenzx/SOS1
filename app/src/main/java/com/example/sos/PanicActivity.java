@@ -90,7 +90,7 @@ public class PanicActivity extends AppCompatActivity {
         ImageView btnSos = findViewById(R.id.btnSosPanic);
         btnSos.setOnClickListener(v -> {
             if (allPermissionsGranted()) {
-                triggerSOS();
+                triggerPanicSOS();
             } else {
                 ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
             }
@@ -125,19 +125,12 @@ public class PanicActivity extends AppCompatActivity {
     }
 
     private void handleCallAction() {
-        String json = sharedPreferences.getString("contacts_json", "[]");
-        try {
-            JSONArray array = new JSONArray(json);
-            if (array.length() == 0) {
-                showCallInputDialog("Emergency", "911");
-            } else if (array.length() == 1) {
-                JSONObject obj = array.getJSONObject(0);
-                showCallInputDialog(obj.getString("name"), obj.getString("number"));
-            } else {
-                showContactSelectionDialog();
-            }
-        } catch (JSONException e) {
+        if (contactList.isEmpty()) {
             showCallInputDialog("Emergency", "911");
+        } else if (contactList.size() == 1) {
+            sendSmsAndCall(contactList.get(0).name, contactList.get(0).number, "Emergency call initiated. I need help.");
+        } else {
+            showContactSelectionDialog();
         }
     }
 
@@ -148,9 +141,10 @@ public class PanicActivity extends AppCompatActivity {
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("Select Contact to Call")
+                .setTitle("Select Contact to Call & Text")
                 .setItems(names, (dialog, which) -> {
-                    makeQuickCall(contactList.get(which).name, contactList.get(which).number);
+                    Contact contact = contactList.get(which);
+                    sendSmsAndCall(contact.name, contact.number, "Emergency call initiated. I need help.");
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -164,10 +158,10 @@ public class PanicActivity extends AppCompatActivity {
         input.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
         input.setText(defaultNumber);
         builder.setView(input);
-        builder.setPositiveButton("Call", (dialog, which) -> {
+        builder.setPositiveButton("Call & Text", (dialog, which) -> {
             String number = input.getText().toString().trim();
             if (!number.isEmpty()) {
-                makeQuickCall(serviceName, number);
+                sendSmsAndCall(serviceName, number, "Emergency " + serviceName + " alert triggered.");
             }
         });
         builder.setNegativeButton("Cancel", null);
@@ -223,7 +217,7 @@ public class PanicActivity extends AppCompatActivity {
         }
     }
 
-    private void triggerSOS() {
+    private void triggerPanicSOS() {
         if (contactList.isEmpty()) {
             Toast.makeText(this, "Please add emergency contacts first", Toast.LENGTH_SHORT).show();
             return;
@@ -243,44 +237,63 @@ public class PanicActivity extends AppCompatActivity {
                 smsManager = SmsManager.getDefault();
             }
 
+            // Send SMS to ALL contacts
             ArrayList<String> parts = smsManager.divideMessage(message);
             for (Contact contact : contactList) {
-                String cleanNumber = contact.number.replaceAll("\\s+", "");
+                String cleanNumber = contact.number.replaceAll("[^0-9+*#]", "");
                 smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
             }
             
-            Toast.makeText(this, "SOS Sent to " + contactList.size() + " contacts", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "SOS Text sent to all contacts", Toast.LENGTH_SHORT).show();
 
+            // Then prompt for Call immediately
+            Contact firstContact = contactList.get(0);
             String sosLabel = contactList.size() > 1 ? "Group SOS (" + contactList.size() + ")" : "SOS Call";
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Call for Help?");
-            builder.setCancelable(false);
-
-            if (contactList.size() > 1) {
-                String[] names = new String[contactList.size()];
-                for (int i = 0; i < contactList.size(); i++) {
-                    names[i] = contactList.get(i).name + " (" + contactList.get(i).number + ")";
-                }
-                builder.setItems(names, (dialog, which) -> {
-                    makeQuickCall(sosLabel, contactList.get(which).number);
-                });
-            } else {
-                builder.setMessage("SMS sent to " + contactList.get(0).name + ". Call them?");
-                builder.setPositiveButton("Call", (dialog, which) -> {
-                    makeQuickCall(sosLabel, contactList.get(0).number);
-                });
-            }
-
-            builder.setNegativeButton("Dismiss", null);
-            builder.show();
+            
+            new AlertDialog.Builder(this)
+                    .setTitle("SOS Call")
+                    .setMessage("SMS sent to all. Call " + firstContact.name + " now?")
+                    .setPositiveButton("Call Now", (dialog, which) -> {
+                        makeQuickCall(sosLabel, firstContact.number);
+                    })
+                    .setNegativeButton("Choose Other", (dialog, which) -> {
+                        showContactSelectionDialog();
+                    })
+                    .setNeutralButton("Cancel", null)
+                    .setCancelable(false)
+                    .show();
 
         } catch (Exception e) {
             Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
+    private void sendSmsAndCall(String name, String number, String customNote) {
+        String locationPart = lastKnownLocationUrl.isEmpty() ? "Location unavailable" : lastKnownLocationUrl;
+        String message = customNote + " My location: " + locationPart;
+
+        try {
+            SmsManager smsManager;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                smsManager = getSystemService(SmsManager.class);
+            } else {
+                smsManager = SmsManager.getDefault();
+            }
+
+            String cleanNumber = number.replaceAll("[^0-9+*#]", "");
+            ArrayList<String> parts = smsManager.divideMessage(message);
+            smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null);
+            
+            Toast.makeText(this, "SMS Alert Sent", Toast.LENGTH_SHORT).show();
+            makeQuickCall(name, number);
+
+        } catch (Exception e) {
+            Toast.makeText(this, "Action failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void makeQuickCall(String name, String number) {
-        String cleanNumber = number.replaceAll("\\s+", "");
+        String cleanNumber = number.replaceAll("[^0-9+*#]", "");
         Intent callIntent = new Intent(Intent.ACTION_CALL);
         callIntent.setData(Uri.parse("tel:" + cleanNumber));
         startActivity(callIntent);
@@ -321,7 +334,7 @@ public class PanicActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
-                triggerSOS();
+                triggerPanicSOS();
             }
         }
     }
